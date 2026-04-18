@@ -6,7 +6,7 @@
 
 ## The Problem
 
-A small e-commerce storefront built with Next.js 14 (App Router) was scoring **42 on Lighthouse Performance**. The client had hired an agency to build it and now needed someone to identify why it was slow and fix it. The app wasn't complex — a product listing page, a category grid, a hero image, and a nav bar — but four common mistakes had compounded into a consistently sluggish experience.
+A small e-commerce storefront built with Next.js 14 (App Router) was scoring **42 on Lighthouse Performance**. The client had hired an agency to build it and now needed someone to identify why it was slow and fix it. The app wasn't complex - a product listing page, a category grid, a hero image, and a nav bar - but four common mistakes had compounded into a consistently sluggish experience.
 
 **Illustrative "before" Lighthouse scores (mobile, simulated 4G):**
 
@@ -27,11 +27,11 @@ Auditing the source revealed four distinct problems, each with a measurable impa
 
 ---
 
-## Change 1 — Remove `"use client"` from the Root Layout
+## Change 1 - Remove `"use client"` from the Root Layout
 
 ### Problem
 
-The root `app/layout.tsx` had `"use client"` at the top in order to hold the dark-mode `useState`. In the App Router, a `"use client"` directive on a parent turns **every component in its subtree** into a client component. That means Nav, ProductGrid, ProductCard — none of them ran as Server Components, and all of their JavaScript had to ship to the browser even though they only render static HTML.
+The root `app/layout.tsx` had `"use client"` at the top in order to hold the dark-mode `useState`. In the App Router, a `"use client"` directive on a parent turns **every component in its subtree** into a client component. That means Nav, ProductGrid, ProductCard - none of them ran as Server Components, and all of their JavaScript had to ship to the browser even though they only render static HTML.
 
 **Before (`app/layout.tsx`):**
 ```tsx
@@ -41,16 +41,16 @@ import { useState } from "react";
 import Nav from "./components/Nav";
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  const [darkMode, setDarkMode] = useState(false);
+ const [darkMode, setDarkMode] = useState(false);
 
-  return (
-    <html lang="en" className={darkMode ? "dark" : ""}>
-      <body>
-        <Nav onToggleDark={() => setDarkMode((d) => !d)} darkMode={darkMode} />
-        <main>{children}</main>
-      </body>
-    </html>
-  );
+ return (
+ <html lang="en" className={darkMode ? "dark" : ""}>
+ <body>
+ <Nav onToggleDark={() => setDarkMode((d) => !d)} darkMode={darkMode} />
+ <main>{children}</main>
+ </body>
+ </html>
+ );
 }
 ```
 
@@ -60,20 +60,20 @@ Extract the interactive part (the toggle button) to a minimal `"use client"` isl
 
 **After (`app/layout.tsx`):**
 ```tsx
-// No "use client" — Server Component ✅
+// No "use client" - Server Component ✅
 import Nav from "./components/Nav";
 
 export const metadata = { title: "PerfShop" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <Nav />
-        <main>{children}</main>
-      </body>
-    </html>
-  );
+ return (
+ <html lang="en">
+ <body>
+ <Nav />
+ <main>{children}</main>
+ </body>
+ </html>
+ );
 }
 ```
 
@@ -84,18 +84,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 import { useState } from "react";
 
 export default function NavInteractive() {
-  const [darkMode, setDarkMode] = useState(false);
-  return (
-    <button
-      onClick={() => {
-        setDarkMode((d) => !d);
-        document.documentElement.classList.toggle("dark");
-      }}
-      className="px-3 py-1 rounded border text-sm"
-    >
-      {darkMode ? "Light" : "Dark"}
-    </button>
-  );
+ const [darkMode, setDarkMode] = useState(false);
+ return (
+ <button
+ onClick={() => {
+ setDarkMode((d) => !d);
+ document.documentElement.classList.toggle("dark");
+ }}
+ className="px-3 py-1 rounded border text-sm"
+ >
+ {darkMode ? "Light" : "Dark"}
+ </button>
+ );
 }
 ```
 
@@ -103,14 +103,14 @@ export default function NavInteractive() {
 
 ---
 
-## Change 2 — Move Data Fetching to Server Components
+## Change 2 - Move Data Fetching to Server Components
 
 ### Problem
 
 The home page and products page both used `useEffect` + `fetch` to load data after the page mounted. This means:
 - First paint is a blank/loading state (bad FCP).
 - The browser has to download JS, execute it, then make a network request, then re-render.
-- No server-side caching — every user triggers a fresh fetch.
+- No server-side caching - every user triggers a fresh fetch.
 
 **Before (`app/page.tsx`):**
 ```tsx
@@ -119,18 +119,18 @@ The home page and products page both used `useEffect` + `fetch` to load data aft
 import { useEffect, useState } from "react"; // ❌
 
 export default function HomePage() {
-  const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
+ const [products, setProducts] = useState([]);
+ const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // ❌ Runs after mount — user sees nothing until this resolves
-    fetch("https://fakestoreapi.com/products")
-      .then((r) => r.json())
-      .then((data) => { setProducts(data); setLoading(false); });
-  }, []);
+ useEffect(() => {
+ // ❌ Runs after mount - user sees nothing until this resolves
+ fetch("https://fakestoreapi.com/products")
+ .then((r) => r.json())
+ .then((data) => { setProducts(data); setLoading(false); });
+ }, []);
 
-  if (loading) return <p>Loading...</p>;
-  return <ProductGrid products={products} />;
+ if (loading) return <p>Loading...</p>;
+ return <ProductGrid products={products} />;
 }
 ```
 
@@ -140,26 +140,26 @@ Convert to an `async` Server Component. Data is fetched on the server before the
 
 **After (`app/page.tsx`):**
 ```tsx
-// Server Component — no "use client", no hooks ✅
+// Server Component - no "use client", no hooks ✅
 import ProductGrid from "./components/ProductGrid";
 
 async function getProducts() {
-  const res = await fetch("https://fakestoreapi.com/products", {
-    next: { revalidate: 60 }, // ✅ Cached for 60 seconds — serves from edge
-  });
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
+ const res = await fetch("https://fakestoreapi.com/products", {
+ next: { revalidate: 60 }, // ✅ Cached for 60 seconds - serves from edge
+ });
+ if (!res.ok) throw new Error("Failed to fetch products");
+ return res.json();
 }
 
 export default async function HomePage() {
-  const products = await getProducts(); // ✅ Runs on server, HTML arrives pre-filled
+ const products = await getProducts(); // ✅ Runs on server, HTML arrives pre-filled
 
-  return (
-    <div>
-      <h1 className="text-3xl font-bold my-6">All Products</h1>
-      <ProductGrid products={products} />
-    </div>
-  );
+ return (
+ <div>
+ <h1 className="text-3xl font-bold my-6">All Products</h1>
+ <ProductGrid products={products} />
+ </div>
+ );
 }
 ```
 
@@ -167,31 +167,31 @@ export default async function HomePage() {
 
 ---
 
-## Change 3 — Replace `<img>` with `next/image`
+## Change 3 - Replace `<img>` with `next/image`
 
 ### Problem
 
-The app used plain `<img>` tags throughout — on the hero banner and on every product card. This causes three separate issues:
-1. **No automatic WebP conversion** — browsers download JPEG/PNG even when WebP would be 30–50% smaller.
-2. **No layout reservation** — the browser doesn't know the image dimensions until it loads, causing content to jump (CLS 0.24).
-3. **No lazy loading coordination** — all images below the fold load immediately, competing with the hero for bandwidth.
+The app used plain `<img>` tags throughout - on the hero banner and on every product card. This causes three separate issues:
+1. **No automatic WebP conversion** - browsers download JPEG/PNG even when WebP would be 30-50% smaller.
+2. **No layout reservation** - the browser doesn't know the image dimensions until it loads, causing content to jump (CLS 0.24).
+3. **No lazy loading coordination** - all images below the fold load immediately, competing with the hero for bandwidth.
 
 **Before (`app/components/ProductCard.tsx`):**
 ```tsx
 "use client"; // ❌ unnecessary
 
 export default function ProductCard({ product }) {
-  return (
-    <div>
-      {/* ❌ No size hints, no lazy loading, no format optimization */}
-      <img
-        src={product.image}
-        alt={product.title}
-        className="w-full h-48 object-contain"
-      />
-      ...
-    </div>
-  );
+ return (
+ <div>
+ {/* ❌ No size hints, no lazy loading, no format optimization */}
+ <img
+ src={product.image}
+ alt={product.title}
+ className="w-full h-48 object-contain"
+ />
+ ...
+ </div>
+ );
 }
 ```
 
@@ -201,36 +201,36 @@ Switch to `next/image`, add `sizes` for responsive loading, use `priority` on th
 
 **After (`app/components/ProductCard.tsx`):**
 ```tsx
-// Server Component — no "use client" needed ✅
+// Server Component - no "use client" needed ✅
 import Image from "next/image";
 
 export default function ProductCard({ product }) {
-  return (
-    <div>
-      <div className="relative w-full h-48">
-        {/* ✅ WebP served automatically, layout reserved, lazy-loaded by default */}
-        <Image
-          src={product.image}
-          alt={product.title}
-          fill
-          className="object-contain"
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-        />
-      </div>
-      ...
-    </div>
-  );
+ return (
+ <div>
+ <div className="relative w-full h-48">
+ {/* ✅ WebP served automatically, layout reserved, lazy-loaded by default */}
+ <Image
+ src={product.image}
+ alt={product.title}
+ fill
+ className="object-contain"
+ sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+ />
+ </div>
+ ...
+ </div>
+ );
 }
 ```
 
 **After (`next.config.js`):**
 ```js
 const nextConfig = {
-  images: {
-    remotePatterns: [
-      { protocol: "https", hostname: "fakestoreapi.com", pathname: "/img/**" },
-    ],
-  },
+ images: {
+ remotePatterns: [
+ { protocol: "https", hostname: "fakestoreapi.com", pathname: "/img/**" },
+ ],
+ },
 };
 ```
 
@@ -238,7 +238,7 @@ const nextConfig = {
 
 ---
 
-## Change 4 — Eliminate Full Lodash Import
+## Change 4 - Eliminate Full Lodash Import
 
 ### Problem
 
@@ -248,31 +248,31 @@ The products page imported the entire lodash library with `import _ from 'lodash
 ```tsx
 import _ from "lodash"; // ❌ ~70 KB for two functions
 
-const sorted = _.sortBy(products, "price");    // needs ~2 KB
+const sorted = _.sortBy(products, "price"); // needs ~2 KB
 const byCategory = _.groupBy(sorted, "category"); // needs ~2 KB
 ```
 
 ### Fix
 
-Replace both calls with native JavaScript equivalents — no dependency needed at all.
+Replace both calls with native JavaScript equivalents - no dependency needed at all.
 
 **After (`app/products/page.tsx`):**
 ```tsx
-// ✅ No lodash import — native JS handles both operations
+// ✅ No lodash import - native JS handles both operations
 
 // Sort by price
 const sorted = [...products].sort((a, b) => a.price - b.price);
 
 // Group by category
 const byCategory = sorted.reduce<Record<string, Product[]>>((acc, p) => {
-  (acc[p.category] ??= []).push(p);
-  return acc;
+ (acc[p.category] ??= []).push(p);
+ return acc;
 }, {});
 ```
 
 If lodash were genuinely needed elsewhere (complex deep cloning, fp-style chains), the correct import is:
 ```tsx
-// ✅ Named import — tree-shaken to only include sortBy (~2 KB)
+// ✅ Named import - tree-shaken to only include sortBy (~2 KB)
 import { sortBy } from "lodash-es";
 ```
 
@@ -280,7 +280,7 @@ import { sortBy } from "lodash-es";
 
 ---
 
-## Change 5 — Lazy-Load the Below-the-Fold Chart Component
+## Change 5 - Lazy-Load the Below-the-Fold Chart Component
 
 ### Problem
 
@@ -288,15 +288,15 @@ import { sortBy } from "lodash-es";
 
 **Before (`app/products/page.tsx`):**
 ```tsx
-import SalesChart from "../components/SalesChart"; // ❌ eager — always downloaded
+import SalesChart from "../components/SalesChart"; // ❌ eager - always downloaded
 
 export default function ProductsPage() {
-  return (
-    <div>
-      <SalesChart data={products} /> {/* below the fold */}
-      ...
-    </div>
-  );
+ return (
+ <div>
+ <SalesChart data={products} /> {/* below the fold */}
+ ...
+ </div>
+ );
 }
 ```
 
@@ -308,15 +308,15 @@ Use Next.js `dynamic()` with a skeleton `loading` state. The chart's JS chunk is
 ```tsx
 import dynamic from "next/dynamic";
 
-// ✅ Loaded lazily — chart JS chunk is a separate network request
-//    made only when the component scrolls into view
+// ✅ Loaded lazily - chart JS chunk is a separate network request
+// made only when the component scrolls into view
 const SalesChart = dynamic(() => import("../components/SalesChart"), {
-  ssr: false, // chart uses browser APIs; skip SSR
-  loading: () => (
-    <div className="my-8 p-4 border rounded-lg h-40 flex items-center justify-center text-gray-400">
-      Loading chart…
-    </div>
-  ),
+ ssr: false, // chart uses browser APIs; skip SSR
+ loading: () => (
+ <div className="my-8 p-4 border rounded-lg h-40 flex items-center justify-center text-gray-400">
+ Loading chart…
+ </div>
+ ),
 });
 ```
 
@@ -324,29 +324,29 @@ const SalesChart = dynamic(() => import("../components/SalesChart"), {
 
 ---
 
-## Change 6 — Remove Unnecessary `"use client"` from Leaf Components
+## Change 6 - Remove Unnecessary `"use client"` from Leaf Components
 
 ### Problem
 
-`ProductCard` and `ProductGrid` both had `"use client"` at the top despite having no hooks, no event handlers, and no browser API usage. This was likely cargo-culted from an earlier version of the codebase or copied from an example that needed it. When these components are imported inside another client component (like the old `"use client"` layout), the directive was redundant. But when they could be Server Components, the directive forces all of their code — and the code of anything they import — onto the client bundle.
+`ProductCard` and `ProductGrid` both had `"use client"` at the top despite having no hooks, no event handlers, and no browser API usage. This was likely cargo-culted from an earlier version of the codebase or copied from an example that needed it. When these components are imported inside another client component (like the old `"use client"` layout), the directive was redundant. But when they could be Server Components, the directive forces all of their code - and the code of anything they import - onto the client bundle.
 
 **Before:**
 ```tsx
-"use client"; // ❌ on ProductCard — pure display component
+"use client"; // ❌ on ProductCard - pure display component
 
 export default function ProductCard({ product }) {
-  // No useState, no useEffect, no onClick — nothing needs the client
-  return <div>...</div>;
+ // No useState, no useEffect, no onClick - nothing needs the client
+ return <div>...</div>;
 }
 ```
 
 **After:**
 ```tsx
-// ✅ No directive — defaults to Server Component in the App Router
+// ✅ No directive - defaults to Server Component in the App Router
 // Renders on server, ships zero runtime JS for this component
 
 export default function ProductCard({ product }) {
-  return <div>...</div>;
+ return <div>...</div>;
 }
 ```
 
@@ -387,10 +387,10 @@ One misplaced directive at the top of the tree can undo the entire benefit of Se
 `async` Server Components are the idiomatic replacement. They're simpler, cache by default, and eliminate the loading-state flash that degrades FCP.
 
 **3. Every `<img>` tag is a missed optimization.**
-`next/image` isn't just about WebP — it's about telling the browser dimensions upfront (fixes CLS) and coordinating priority vs. lazy loading. It's a one-line import swap with meaningful Lighthouse impact.
+`next/image` isn't just about WebP - it's about telling the browser dimensions upfront (fixes CLS) and coordinating priority vs. lazy loading. It's a one-line import swap with meaningful Lighthouse impact.
 
 **4. Dependency weight compounds.**
-A single `import _ from 'lodash'` adds more TBT than many developers expect. Audit bundle weight with `@next/bundle-analyzer` before optimizing components — find the biggest payloads first.
+A single `import _ from 'lodash'` adds more TBT than many developers expect. Audit bundle weight with `@next/bundle-analyzer` before optimizing components - find the biggest payloads first.
 
 **5. Dynamic imports are surgical code splitting.**
 Any component that is below the fold, conditionally rendered, or used only on one route is a candidate for `dynamic()`. The loading skeleton prevents CLS while the chunk fetches.
@@ -402,7 +402,7 @@ Any component that is below the fold, conditionally rendered, or used only on on
 The full before/after code is in `code/before/` and `code/after/`. Both are self-contained Next.js 14 App Router projects. Run either with:
 
 ```bash
-cd code/before  # or code/after
+cd code/before # or code/after
 npm install
 npm run dev
 ```
