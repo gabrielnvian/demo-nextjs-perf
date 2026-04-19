@@ -38,3 +38,4 @@ Same commands for `code/after`. Open both side by side to see the difference.
 ## About
 
 Built by Gabriel Vian. I build and ship full-stack internal tools for SMBs and startups. If you have a Next.js app that is slower than it should be, or a spreadsheet-shaped problem that wants to be a real admin panel, get in touch.
+
