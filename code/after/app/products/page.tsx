@@ -23,11 +23,17 @@ interface Product {
 }
 
 async function getProducts(): Promise<Product[]> {
+ try {
  const res = await fetch("https://fakestoreapi.com/products", {
  next: { revalidate: 60 },
  });
- if (!res.ok) throw new Error("Failed to fetch products");
+ if (!res.ok) return [];
  return res.json();
+ } catch {
+ // Fall back to empty list so the build can prerender even when the
+ // upstream API is unreachable. ISR will refresh on the next request.
+ return [];
+ }
 }
 
 export default async function ProductsPage() {

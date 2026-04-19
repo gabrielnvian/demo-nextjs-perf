@@ -15,11 +15,17 @@ interface Product {
 async function getProducts(): Promise<Product[]> {
  // ✅ fetch() in a Server Component is cached by Next.js automatically.
  // Use { next: { revalidate: 60 } } for ISR if data changes.
+ try {
  const res = await fetch("https://fakestoreapi.com/products", {
  next: { revalidate: 60 },
  });
- if (!res.ok) throw new Error("Failed to fetch products");
+ if (!res.ok) return [];
  return res.json();
+ } catch {
+ // Fall back to empty list so the build can prerender even when the
+ // upstream API is unreachable. ISR will refresh on the next request.
+ return [];
+ }
 }
 
 export default async function HomePage() {
